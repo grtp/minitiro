@@ -1,0 +1,6 @@
+/target
+/bin
+.env
+buffer.wav
+list.txt
+minitiro.exe
