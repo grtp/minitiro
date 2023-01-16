@@ -3,26 +3,26 @@ use urlencoding::encode;
 use serde_json;
 use serde_json::Value;
 
-pub async fn get_speakers() -> Option<Vec<Vec<String>>> {
+pub async fn get_speakers() -> Option<Vec<(String, String)>> {
     let result = reqwest::get("http://127.0.0.1:50021/speakers").await;
     match result {
         Ok(res) => {
             let res : Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
             let res = res.as_array().unwrap();
-            let mut all :Vec<Vec<String>> = Vec::new();
+            let mut all :Vec<(String, String)> = Vec::new();
             for el in res.iter() {
                 let styles = el.get("styles").unwrap().as_array().unwrap();
                 for s in styles.iter() {
-                    let mut part_of: Vec<String> = Vec::new();
                     let id = &*s.get("id").unwrap();
-                    part_of.push(serde_json::to_string(&id).unwrap());
+                    let id = serde_json::to_string(&id).unwrap();
                     let name = &*el.get("name").unwrap();
-                    part_of.push(serde_json::to_string(&name).unwrap());
-                    let tp = &*s.get("name").unwrap();
-                    part_of.push(serde_json::to_string(&tp).unwrap());
-                    let version = &*el.get("version").unwrap();
-                    part_of.push(serde_json::to_string(&version).unwrap());
-                    all.push(part_of);
+                    let name = serde_json::to_string(&name).unwrap();
+                    let kind = &*s.get("name").unwrap();
+                    let kind = serde_json::to_string(&kind).unwrap();
+                    let mut name_and_type = name;
+                    name_and_type.push_str(" ");
+                    name_and_type.push_str(&kind);
+                    all.push((id, name_and_type));
                 }
             }
             return Some(all);
@@ -31,7 +31,7 @@ pub async fn get_speakers() -> Option<Vec<Vec<String>>> {
     };
 }
 
-pub async fn create_wav(text: &str, speaker: u32) -> Option<Vec<u8>> {
+pub async fn create_wav(text: &str, speaker: usize) -> Option<Vec<u8>> {
     // create audio json data.
     let client = reqwest::Client::new();
     let mut url = "http://127.0.0.1:50021/audio_query".to_string();
