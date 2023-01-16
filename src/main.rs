@@ -1,21 +1,31 @@
 use songbird::SerenityInit;
+use serenity::prelude::*;
 use dotenv::dotenv;
-
-pub const PREFIX: &str = "!";
+use std::sync::{ Arc, RwLock };
 
 mod vox;
 mod bot;
 
+struct VoiceActorListLength;
+impl TypeMapKey for VoiceActorListLength { type Value = Arc<RwLock<usize>>; }
+struct VoiceActorList;
+impl TypeMapKey for VoiceActorList { type Value = Arc<RwLock<Vec<(String, String)>>>; }
+struct CurrentVoiceActor;
+impl TypeMapKey for CurrentVoiceActor { type Value = Arc<RwLock<String>>; }
+struct AllowChannels;
+impl TypeMapKey for AllowChannels { type Value = Arc<RwLock<Vec<String>>>; }
+struct AllowMembers;
+impl TypeMapKey for AllowMembers { type Value = Arc<RwLock<Vec<String>>>; }
+
+pub const CMD_PREFIX: &str = "/";
+
 #[tokio::main]
 async fn main() {
-    // init settings
     dotenv().ok();
     let token = bot::env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-    // let mut f = File::create("setting").unwrap();
-    // f.write_all(b"13").unwrap();
 
     let framework = bot::StandardFramework::new()
-        .configure(|c| c.prefix(PREFIX))
+        .configure(|c| c.prefix(CMD_PREFIX))
         .group(&bot::GENERAL_GROUP);
 
     let intents = bot::GatewayIntents::non_privileged()
@@ -27,6 +37,16 @@ async fn main() {
         .register_songbird()
         .await
         .expect("Err creating client");
+    {
+        let mut data = client.data.write().await;
+        let speakers = vox::get_speakers().await;
+        let Some(speakers) = speakers else { panic!("[Err] Ops can't found any actor"); };
+        data.insert::<VoiceActorListLength>(Arc::new(RwLock::new(speakers.len())));
+        data.insert::<VoiceActorList>(Arc::new(RwLock::new(speakers)));
+        data.insert::<CurrentVoiceActor>(Arc::new(RwLock::new("29".to_string())));
+        data.insert::<AllowChannels>(Arc::new(RwLock::new(Vec::<String>::new())));
+        data.insert::<AllowMembers>(Arc::new(RwLock::new(Vec::<String>::new())));
+    }
 
     let _ = client
         .start()
